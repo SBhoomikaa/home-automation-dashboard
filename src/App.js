@@ -29,6 +29,7 @@ function App() {
     browserSupportsSpeechRecognition
   } = useSpeechRecognition();
 
+  // ✅ Firebase database listeners
   useEffect(() => {
     const alarmRef = ref(db, "alarm");
     const overrideRef = ref(db, "override");
@@ -42,10 +43,17 @@ function App() {
     });
   }, []);
 
+  // ✅ Logging state changes
+  useEffect(() => {
+    console.log("📢 Browser supports Speech Recognition:", browserSupportsSpeechRecognition);
+    console.log("🎧 Listening state changed:", listening);
+  }, [browserSupportsSpeechRecognition, listening]);
+
   useEffect(() => {
     console.log("🎙️ Transcript updated:", transcript);
   }, [transcript]);
 
+  // ✅ Send transcript to Dialogflow
   const handleVoice = async () => {
     if (!transcript.trim()) {
       alert("❗ Say something before sending to Dialogflow.");
@@ -87,12 +95,17 @@ function App() {
     resetTranscript();
   };
 
-  const startListening = () => {
+  // ✅ Start listening for speech
+  const startListening = async () => {
     try {
-      // Stop any previous instance before starting again
-      SpeechRecognition.abortListening();
-      resetTranscript();
+      if (!browserSupportsSpeechRecognition) {
+        alert("❌ Your browser does not support speech recognition.");
+        return;
+      }
 
+      console.log("🎤 Starting voice recognition...");
+      await SpeechRecognition.abortListening(); // Stop any previous session
+      resetTranscript();
       SpeechRecognition.startListening({
         continuous: false,
         interimResults: true,
@@ -104,9 +117,11 @@ function App() {
   };
 
   const stopListening = () => {
+    console.log("🛑 Stopping voice recognition.");
     SpeechRecognition.stopListening();
   };
 
+  // ✅ If unsupported, fallback UI
   if (!browserSupportsSpeechRecognition) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
