@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, onValue } from "firebase/database";
 import { sendToDialogflow } from "./dialogflowClient";
@@ -21,15 +20,10 @@ const db = getDatabase(app);
 function App() {
   const [alarm, setAlarm] = useState("off");
   const [override, setOverride] = useState("off");
+  const [manualTranscript, setManualTranscript] = useState("");
+  const [listening, setListening] = useState(false);
 
-  const {
-    transcript,
-    listening,
-    resetTranscript,
-    browserSupportsSpeechRecognition
-  } = useSpeechRecognition();
-
-  // ✅ Firebase database listeners
+  // ✅ Realtime Firebase
   useEffect(() => {
     const alarmRef = ref(db, "alarm");
     const overrideRef = ref(db, "override");
@@ -43,24 +37,52 @@ function App() {
     });
   }, []);
 
-  // ✅ Logging state changes
-  useEffect(() => {
-    console.log("📢 Browser supports Speech Recognition:", browserSupportsSpeechRecognition);
-    console.log("🎧 Listening state changed:", listening);
-  }, [browserSupportsSpeechRecognition, listening]);
+  // ✅ Manual fallback speech recognition
+  const manualStartListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("❌ Your browser does not support Web Speech API.");
+      return;
+    }
 
-  useEffect(() => {
-    console.log("🎙️ Transcript updated:", transcript);
-  }, [transcript]);
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-  // ✅ Send transcript to Dialogflow
+    recognition.onstart = () => {
+      console.log("🎤 Manual recognition started");
+      setListening(true);
+      setManualTranscript("");
+    };
+
+    recognition.onresult = (event) => {
+      const spokenText = event.results[0][0].transcript;
+      console.log("🎙️ Manual result:", spokenText);
+      setManualTranscript(spokenText);
+    };
+
+    recognition.onerror = (e) => {
+      console.error("❌ Manual error:", e.error);
+      alert("Error: " + e.error);
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      console.log("🛑 Manual recognition ended");
+      setListening(false);
+    };
+
+    recognition.start();
+  };
+
   const handleVoice = async () => {
-    if (!transcript.trim()) {
+    if (!manualTranscript.trim()) {
       alert("❗ Say something before sending to Dialogflow.");
       return;
     }
 
-    const result = await sendToDialogflow(transcript);
+    const result = await sendToDialogflow(manualTranscript);
     console.log("Dialogflow result:", result);
 
     const intent = result?.intent?.displayName;
@@ -68,7 +90,6 @@ function App() {
 
     if (!intent) {
       alert("❌ No intent detected.");
-      resetTranscript();
       return;
     }
 
@@ -92,54 +113,16 @@ function App() {
       alert(`⚠️ Unknown command: ${intent}`);
     }
 
-    resetTranscript();
+    setManualTranscript("");
   };
-
-  // ✅ Start listening for speech
-  const startListening = async () => {
-    try {
-      if (!browserSupportsSpeechRecognition) {
-        alert("❌ Your browser does not support speech recognition.");
-        return;
-      }
-
-      console.log("🎤 Starting voice recognition...");
-      await SpeechRecognition.abortListening(); // Stop any previous session
-      resetTranscript();
-      SpeechRecognition.startListening({
-        continuous: false,
-        interimResults: true,
-        language: "en-US"
-      });
-    } catch (err) {
-      console.error("❌ Error starting voice recognition:", err);
-    }
-  };
-
-  const stopListening = () => {
-    console.log("🛑 Stopping voice recognition.");
-    SpeechRecognition.stopListening();
-  };
-
-  // ✅ If unsupported, fallback UI
-  if (!browserSupportsSpeechRecognition) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        ❌ Your browser does not support speech recognition.
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center gap-6 p-4">
       <h1 className="text-3xl font-bold">🏠 Home Automation Dashboard + Voice</h1>
 
-      <div className="flex gap-4">
-        <button className="px-4 py-2 bg-yellow-600 rounded" onClick={startListening}>
-          🎤 Start Voice
-        </button>
-        <button className="px-4 py-2 bg-gray-700 rounded" onClick={stopListening}>
-          🛑 Stop
+      <div className="flex gap-4 flex-wrap justify-center">
+        <button className="px-4 py-2 bg-yellow-600 rounded" onClick={manualStartListening}>
+          🎤 Manual Voice Test
         </button>
         <button className="px-4 py-2 bg-blue-600 rounded" onClick={handleVoice}>
           🚀 Send to Dialogflow
@@ -154,7 +137,7 @@ function App() {
       </div>
 
       <p className="text-green-400 mt-2 max-w-lg text-center">
-        Transcript: <em>{transcript || "🎧 Waiting for your voice..."}</em>
+        Transcript: <em>{manualTranscript || "🎧 Waiting for your voice..."}</em>
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
