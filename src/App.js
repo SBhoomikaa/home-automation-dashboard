@@ -20,13 +20,15 @@ const db = getDatabase(app);
 function App() {
   const [alarm, setAlarm] = useState("off");
   const [override, setOverride] = useState("off");
+  const [movieNight, setMovieNight] = useState("off");
   const [manualTranscript, setManualTranscript] = useState("");
   const [listening, setListening] = useState(false);
 
-  // ✅ Realtime Firebase
+  // ✅ Realtime Firebase listeners
   useEffect(() => {
     const alarmRef = ref(db, "alarm");
     const overrideRef = ref(db, "override");
+    const movieRef = ref(db, "movie_night");
 
     onValue(alarmRef, (snapshot) => {
       if (snapshot.exists()) setAlarm(snapshot.val());
@@ -35,9 +37,13 @@ function App() {
     onValue(overrideRef, (snapshot) => {
       if (snapshot.exists()) setOverride(snapshot.val());
     });
+
+    onValue(movieRef, (snapshot) => {
+      if (snapshot.exists()) setMovieNight(snapshot.val());
+    });
   }, []);
 
-  // ✅ Manual fallback speech recognition
+  // ✅ Manual speech recognition
   const manualStartListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -76,6 +82,7 @@ function App() {
     recognition.start();
   };
 
+  // ✅ Voice command handling
   const handleVoice = async () => {
     if (!manualTranscript.trim()) {
       alert("❗ Say something before sending to Dialogflow.");
@@ -98,16 +105,18 @@ function App() {
       if (val) {
         set(ref(db, "alarm"), val);
         alert("✅ Alarm updated via voice!");
-      } else {
-        alert("⚠️ Could not find alarm state.");
       }
     } else if (intent === "override_toggle") {
       const val = params?.state;
       if (val) {
         set(ref(db, "override"), val);
         alert("✅ Override updated via voice!");
-      } else {
-        alert("⚠️ Could not find override state.");
+      }
+    } else if (intent === "movie_night_toggle") {
+      const val = params?.state;
+      if (val) {
+        set(ref(db, "movie_night"), val);
+        alert("🎬 Movie Night mode set via voice!");
       }
     } else {
       alert(`⚠️ Unknown command: ${intent}`);
@@ -140,9 +149,10 @@ function App() {
         Transcript: <em>{manualTranscript || "🎧 Waiting for your voice..."}</em>
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        {/* Alarm */}
         <div className="bg-gray-800 p-6 rounded-2xl text-center">
-          <h2 className="text-xl mb-2">Alarm</h2>
+          <h2 className="text-xl mb-2">🚨 Alarm</h2>
           <p className="mb-2">Current: <strong>{alarm}</strong></p>
           <button
             className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded"
@@ -152,14 +162,29 @@ function App() {
           </button>
         </div>
 
+        {/* Override */}
         <div className="bg-gray-800 p-6 rounded-2xl text-center">
-          <h2 className="text-xl mb-2">Override</h2>
+          <h2 className="text-xl mb-2">🛡️ Override</h2>
           <p className="mb-2">Current: <strong>{override}</strong></p>
           <button
             className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded"
             onClick={() => set(ref(db, "override"), override === "on" ? "off" : "on")}
           >
             Toggle Override
+          </button>
+        </div>
+
+        {/* Movie Night */}
+        <div className="bg-gray-800 p-6 rounded-2xl text-center">
+          <h2 className="text-xl mb-2">🎬 Movie Night</h2>
+          <p className="mb-2">Current: <strong>{movieNight}</strong></p>
+          <button
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded"
+            onClick={() =>
+              set(ref(db, "movie_night"), movieNight === "on" ? "off" : "on")
+            }
+          >
+            Toggle Movie Mode
           </button>
         </div>
       </div>
