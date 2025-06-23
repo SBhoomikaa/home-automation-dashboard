@@ -3,6 +3,7 @@ import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognitio
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, onValue } from "firebase/database";
 import { sendToDialogflow } from "./dialogflowClient";
+import "./index.css"; // Tailwind styles
 
 // Firebase config
 const firebaseConfig = {
@@ -22,7 +23,12 @@ function App() {
   const [alarm, setAlarm] = useState("off");
   const [override, setOverride] = useState("off");
 
-  const { transcript, listening, resetTranscript } = useSpeechRecognition();
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognition();
 
   useEffect(() => {
     const alarmRef = ref(db, "alarm");
@@ -38,18 +44,23 @@ function App() {
   }, []);
 
   const handleVoice = async () => {
+    if (!transcript.trim()) {
+      alert("❗ Say something before sending to Dialogflow.");
+      return;
+    }
+
     const result = await sendToDialogflow(transcript);
-    console.log("Dialogflow result:", result); // Debugging
-  
+    console.log("Dialogflow result:", result);
+
     const intent = result?.intent?.displayName;
     const params = result?.parameters;
-  
+
     if (!intent) {
-      alert("❌ No intent detected. Please try again.");
+      alert("❌ No intent detected.");
       resetTranscript();
       return;
     }
-  
+
     if (intent === "alarm_toggle") {
       const val = params?.state;
       if (val) {
@@ -69,37 +80,51 @@ function App() {
     } else {
       alert(`⚠️ Unknown command: ${intent}`);
     }
-  
+
     resetTranscript();
   };
-  
-  
 
   const startListening = () => {
-    SpeechRecognition.startListening({ continuous: false });
+    SpeechRecognition.startListening({ continuous: false, interimResults: true });
   };
+
+  const stopListening = () => {
+    SpeechRecognition.stopListening();
+  };
+
+  if (!browserSupportsSpeechRecognition) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        ❌ Your browser does not support speech recognition.
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center gap-6 p-4">
       <h1 className="text-3xl font-bold">🏠 Home Automation Dashboard + Voice</h1>
 
       <div className="flex gap-4">
-        <button
-          className="px-4 py-2 bg-yellow-600 rounded"
-          onClick={startListening}
-        >
+        <button className="px-4 py-2 bg-yellow-600 rounded" onClick={startListening}>
           🎤 Start Voice
         </button>
-        <button
-          className="px-4 py-2 bg-blue-600 rounded"
-          onClick={handleVoice}
-        >
+        <button className="px-4 py-2 bg-gray-700 rounded" onClick={stopListening}>
+          🛑 Stop
+        </button>
+        <button className="px-4 py-2 bg-blue-600 rounded" onClick={handleVoice}>
           🚀 Send to Dialogflow
         </button>
       </div>
 
-      <p className="text-green-400 mt-2">
-        Transcript: <em>{transcript}</em>
+      <div className="text-sm text-gray-300">
+        🎙️ Listening:{" "}
+        <span className={listening ? "text-green-400" : "text-red-400"}>
+          {listening ? "Yes" : "No"}
+        </span>
+      </div>
+
+      <p className="text-green-400 mt-2 max-w-lg text-center">
+        Transcript: <em>{transcript || "🎧 Waiting for your voice..."}</em>
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
