@@ -40,22 +40,39 @@ function App() {
   const handleVoice = async () => {
     const result = await sendToDialogflow(transcript);
     console.log("Dialogflow result:", result); // Debugging
-    const intent = result.intent.displayName;
+  
+    const intent = result?.intent?.displayName;
+    const params = result?.parameters;
+  
+    if (!intent) {
+      alert("❌ No intent detected. Please try again.");
+      resetTranscript();
+      return;
+    }
   
     if (intent === "alarm_toggle") {
-      const val = result.parameters.state;
-      set(ref(db, "alarm"), val);
-      alert("Alarm updated via voice!");
+      const val = params?.state;
+      if (val) {
+        set(ref(db, "alarm"), val);
+        alert("✅ Alarm updated via voice!");
+      } else {
+        alert("⚠️ Could not find alarm state.");
+      }
     } else if (intent === "override_toggle") {
-      const val = result.parameters.state;
-      set(ref(db, "override"), val);
-      alert("Override updated via voice!");
+      const val = params?.state;
+      if (val) {
+        set(ref(db, "override"), val);
+        alert("✅ Override updated via voice!");
+      } else {
+        alert("⚠️ Could not find override state.");
+      }
     } else {
-      alert("Unknown command");
+      alert(`⚠️ Unknown command: ${intent}`);
     }
   
     resetTranscript();
   };
+  
   
 
   const startListening = () => {
