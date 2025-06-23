@@ -5,7 +5,6 @@ import { getDatabase, ref, set, onValue } from "firebase/database";
 import { sendToDialogflow } from "./dialogflowClient";
 import "./index.css"; // Tailwind styles
 
-// Firebase config
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -42,6 +41,10 @@ function App() {
       if (snapshot.exists()) setOverride(snapshot.val());
     });
   }, []);
+
+  useEffect(() => {
+    console.log("🎙️ Transcript updated:", transcript);
+  }, [transcript]);
 
   const handleVoice = async () => {
     if (!transcript.trim()) {
@@ -85,7 +88,19 @@ function App() {
   };
 
   const startListening = () => {
-    SpeechRecognition.startListening({ continuous: false, interimResults: true });
+    try {
+      // Stop any previous instance before starting again
+      SpeechRecognition.abortListening();
+      resetTranscript();
+
+      SpeechRecognition.startListening({
+        continuous: false,
+        interimResults: true,
+        language: "en-US"
+      });
+    } catch (err) {
+      console.error("❌ Error starting voice recognition:", err);
+    }
   };
 
   const stopListening = () => {
