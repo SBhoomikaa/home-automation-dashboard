@@ -262,6 +262,25 @@ function App() {
             description="Activate cinematic mode"
           />
         </div>
+
+        {/* Status Bar */}
+        <div className="mt-8 backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span className="text-gray-400">System Online</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                <span className="text-gray-400">Firebase Connected</span>
+              </div>
+            </div>
+            <div className="text-gray-500">
+              Last updated: {currentTime.toLocaleTimeString()}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
