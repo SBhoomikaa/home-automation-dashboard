@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Replace this with your deployed backend URL
-const PROXY_URL = "https://dialogflow-proxy-6u7w.onrender.com";
+const PROXY_URL = "https://dialogflow-proxy-rkio.onrender.com";
 
 export async function sendToDialogflow(text) {
   try {
